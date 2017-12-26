@@ -144,6 +144,12 @@ class PhysicDrawner : public b2Draw {
   }
 };
 
+void setRestitutionToBody(const float iValue, b2Body* ioBody) {
+  for (auto itFix = ioBody->GetFixtureList(); itFix; itFix = itFix->GetNext()) {
+    itFix->SetRestitution(iValue);
+  }
+}
+
 void createSquareDrop() {
   b2BodyDef aBodyDef;
   aBodyDef.type = b2_dynamicBody;
@@ -153,6 +159,8 @@ void createSquareDrop() {
 
   b2Vec2 aBody1StartPosition = getMetricPositionFromPixel(100, 100);
   aBody->SetTransform(aBody1StartPosition, 0.f);
+
+  setRestitutionToBody(0.3f, aBody);
 }
 
 void initBodies() {
@@ -171,7 +179,7 @@ void initBodies() {
   addShapeToBody(SDL_Rect{200, 100, 100, 100}, aBody2);
   b2Vec2 aBody2StartPosition = getMetricPositionFromPixel(400, 600);
   aBody2->SetTransform(aBody2StartPosition, -0.25f);
-  aBody2->GetFixtureList()->SetRestitution(0.5f);
+  setRestitutionToBody(0.3f, aBody2);
 }
 
 void cleanUselessBodies() {
