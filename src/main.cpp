@@ -174,17 +174,26 @@ void initBodies() {
   aBody2->GetFixtureList()->SetRestitution(0.5f);
 }
 
-void printBodiesInfo() {
-  std::size_t aIndexBody = 0;
+void cleanUselessBodies() {
+  constexpr int kMaxOutsidePixel = 1000;
 
-  for (const auto& aPtrBody : gBodies) {
-    const auto& aMetricPosition = aPtrBody->GetPosition();
-    const auto aPixelPosition = getPixelPositionFromMetric(aMetricPosition);
+  auto itBody = gB2World.GetBodyList();
+  while (itBody != nullptr) {
+    SDL_Rect aPixelCoordinate =
+        getPixelPositionFromMetric(itBody->GetPosition());
+    if (aPixelCoordinate.x < -kMaxOutsidePixel ||
+        aPixelCoordinate.x > kWidthRenderer + kMaxOutsidePixel ||
+        aPixelCoordinate.y < -kMaxOutsidePixel ||
+        aPixelCoordinate.y > kHeightRenderer + kMaxOutsidePixel) {
+      b2Body* aPtrBodyToErase = itBody;
+      itBody = itBody->GetNext();
+      aPtrBodyToErase->GetWorld()->DestroyBody(aPtrBodyToErase);
+    } else {
+      itBody = itBody->GetNext();
+    }
+  }
 
-    std::cout << "Body #" << aIndexBody++ << ": (" << aMetricPosition.x << ", "
-              << aMetricPosition.y << ")"
-              << " -> (" << aPixelPosition.x << ", " << aPixelPosition.y
-              << ")\n";
+  for (; itBody; itBody = itBody->GetNext()) {
   }
 }
 
@@ -210,8 +219,10 @@ void mainLoop() {
       }
     }
 
-    // printBodiesInfo();
     stepB2World();
+    cleanUselessBodies();
+
+    std::cout << "BodyInstances: " << gB2World.GetBodyCount() << "\r";
 
     SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 255);
     SDL_RenderClear(gRenderer);
