@@ -220,9 +220,6 @@ void threadPhysicEngine() {
 }
 
 b2Body* createBody(const b2BodyDef& iBodyDef) {
-#ifdef ENABLE_MULTITHREAD
-  std::unique_lock<std::mutex> aLocker(gMutexUpdatePhysic);
-#endif
   b2Body* aNewBody = gB2World.CreateBody(&iBodyDef);
   gBodies.push_back(aNewBody);
   return aNewBody;
@@ -237,6 +234,13 @@ void addShapeToBody(const SDL_Rect& aPixelSize, b2Body* ioBody) {
                       0.f);
 
   ioBody->CreateFixture(&aRectShape, 1.f);
+}
+
+void addShapeCircleToBody(int iRadiusPixel, b2Body* ioBody) {
+  b2CircleShape aCircleShape;
+  aCircleShape.m_radius = getMetricFromPixel(iRadiusPixel);
+
+  ioBody->CreateFixture(&aCircleShape, 1.f);
 }
 
 class PhysicDrawner : public b2Draw {
@@ -260,10 +264,24 @@ class PhysicDrawner : public b2Draw {
   }
 
   void DrawCircle(const b2Vec2& center, float32 radius,
-                  const b2Color& color) override {}
+                  const b2Color& color) override {
+    const SDL_Rect aPosition = getPixelPositionFromMetric(center);
+    const auto aColor = convertColor(color);
+    const Sint16 aRadiusPixel = getPixelFromMetric(radius);
+
+    circleRGBA(gRenderer, aPosition.x, aPosition.y, aRadiusPixel, aColor.r,
+               aColor.g, aColor.b, aColor.a);
+  }
 
   void DrawSolidCircle(const b2Vec2& center, float32 radius, const b2Vec2& axis,
-                       const b2Color& color) override {}
+                       const b2Color& color) override {
+    const SDL_Rect aPosition = getPixelPositionFromMetric(center);
+    const auto aColor = convertColor(color);
+    const Sint16 aRadiusPixel = getPixelFromMetric(radius);
+
+    filledCircleRGBA(gRenderer, aPosition.x, aPosition.y, aRadiusPixel,
+                     aColor.r, aColor.g, aColor.b, aColor.a);
+  }
 
   void DrawSegment(const b2Vec2& p1, const b2Vec2& p2,
                    const b2Color& color) override {}
@@ -304,6 +322,10 @@ void setRestitutionToBody(const float iValue, b2Body* ioBody) {
 }
 
 void createSquareDrop() {
+#ifdef ENABLE_MULTITHREAD
+  std::unique_lock<std::mutex> aLocker(gMutexUpdatePhysic);
+#endif
+
   b2BodyDef aBodyDef;
   aBodyDef.type = b2_dynamicBody;
 
@@ -314,6 +336,23 @@ void createSquareDrop() {
   aBody->SetTransform(aBody1StartPosition, 0.f);
 
   setRestitutionToBody(0.3f, aBody);
+}
+
+void createCircleDrop() {
+#ifdef ENABLE_MULTITHREAD
+  std::unique_lock<std::mutex> aLocker(gMutexUpdatePhysic);
+#endif
+
+  b2BodyDef aBodyDef;
+  aBodyDef.type = b2_dynamicBody;
+
+  b2Body* aBody = createBody(aBodyDef);
+  addShapeCircleToBody(25, aBody);
+
+  b2Vec2 aStartPosition = getMetricPositionFromPixel(100, 100);
+  aBody->SetTransform(aStartPosition, 0.f);
+
+  setRestitutionToBody(0.7f, aBody);
 }
 
 void initBodies() {
@@ -475,9 +514,12 @@ void mainLoop() {
         aRunning = false;
       }
       if (gEvent.type == SDL_KEYUP) {
-        if (gEvent.key.type == SDL_KEYUP &&
-            gEvent.key.keysym.scancode == SDL_SCANCODE_RETURN) {
-          createSquareDrop();
+        if (gEvent.key.type == SDL_KEYUP) {
+          if (gEvent.key.keysym.scancode == SDL_SCANCODE_S) {
+            createSquareDrop();
+          } else if (gEvent.key.keysym.scancode == SDL_SCANCODE_C) {
+            createCircleDrop();
+          }
         }
       }
     }
